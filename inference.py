@@ -11,7 +11,7 @@ HF_TOKEN = os.getenv("HF_TOKEN")
 # Optional - if you use from_docker_image():
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 
-PING_URL = "http://localhost:8000"
+PING_URL = os.getenv("PING_URL", "http://localhost:7860")
 
 def log_start(task: str, env: str, model: str):
     print(f"[START] task={task} env={env} model={model}", flush=True)
@@ -75,7 +75,16 @@ def main():
     try:
         with httpx.Client() as http:
             # Task 1 baseline
-            resp = http.post(f"{PING_URL}/reset", json={"task_id": 1})
+            try:
+                resp = http.post(f"{PING_URL}/reset", json={"task_id": 1}, timeout=10.0)
+                resp.raise_for_status()
+            except Exception as e:
+                # Fallback to port 8000 just in case Meta overrides the routing
+                if "7860" in PING_URL:
+                    PING_URL = PING_URL.replace("7860", "8000")
+                resp = http.post(f"{PING_URL}/reset", json={"task_id": 1}, timeout=10.0)
+                resp.raise_for_status()
+            
             result = resp.json()
             obs = result['observation']
             
@@ -85,11 +94,17 @@ def main():
                 action_dict = get_model_action(client, obs_str)
                 action_str = json.dumps(action_dict)
                 
-                import time
-                time.sleep(3) # Slow down for cinematic dashboard updates
-                
-                resp = http.post(f"{PING_URL}/step", json=action_dict)
-                result = resp.json()
+                try:
+                    resp = http.post(f"{PING_URL}/step", json=action_dict, timeout=10.0)
+                    resp.raise_for_status()
+                    result = resp.json()
+                except Exception as e:
+                    # Fallback to port 8000 just in case Meta overrides the container routing
+                    if "7860" in PING_URL:
+                        PING_URL = PING_URL.replace("7860", "8000")
+                    resp = http.post(f"{PING_URL}/step", json=action_dict, timeout=10.0)
+                    resp.raise_for_status()
+                    result = resp.json()
                 
                 obs = result['observation']
                 reward = result['reward']
