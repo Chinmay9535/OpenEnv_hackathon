@@ -23,6 +23,10 @@ class StateResponse(BaseModel):
     score: float
     done: bool
 
+@app.get("/")
+async def root():
+    return {"status": "ok", "message": "Cloud SRE OpenEnv API is running securely. Listening for agent requests on /reset and /step."}
+
 @app.post("/reset")
 async def reset(req: ResetRequest = ResetRequest()) -> StepResponse:
     global current_sim
