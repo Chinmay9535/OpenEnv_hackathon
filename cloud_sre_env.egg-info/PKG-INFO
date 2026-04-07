@@ -1,0 +1,10 @@
+Metadata-Version: 2.4
+Name: cloud-sre-env
+Version: 0.1.0
+Summary: Cloud SRE DevOps environment for Meta Hackathon
+Requires-Dist: openenv-core>=0.1.0
+Requires-Dist: fastapi>=0.111.0
+Requires-Dist: pydantic>=2.7.0
+Requires-Dist: uvicorn>=0.30.1
+Requires-Dist: openai>=1.30.0
+Requires-Dist: httpx>=0.27.0

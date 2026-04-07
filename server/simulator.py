@@ -121,7 +121,7 @@ class CloudSimulator:
 
     def run_db_query(self, query: str) -> str:
         self.step_count += 1
-        q = query.lower()
+        q = (query or "").lower()
         if self.task_level == 3:
             if "select" in q and "pg_stat_activity" in q:
                 return "PID: 9942, state: active, query: 'UPDATE carts SET ...'"

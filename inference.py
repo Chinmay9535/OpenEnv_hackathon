@@ -121,6 +121,11 @@ def main():
             
             success = score >= 1.0
             
+    except Exception as e:
+        print(f"CRITICAL PIPELINE ERROR: {str(e)}")
+        success = False
+        score = 0.0
+            
     finally:
         log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
 
