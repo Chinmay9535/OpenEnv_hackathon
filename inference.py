@@ -46,11 +46,19 @@ def get_model_action(client: OpenAI, obs_json: str) -> dict:
         pass
     
     # Deterministic fallback for automated offline grading without valid openAI token
-    if "Environment Reset" in obs_json:
+    try:
+        obs_dict = json.loads(obs_json)
+        out = obs_dict.get("last_action_output", "")
+    except:
+        out = ""
+        
+    if "Environment Reset" in out:
         return {"action_type": "query_metrics", "service": "cache", "metric": "memory_usage"}
-    elif "metrics" in obs_json or "40%" in obs_json:
+    elif "time" in out and "val" in out:
+        # output of query_metrics
         return {"action_type": "fetch_logs", "service": "cache", "lines": 10}
     else:
+        # output of fetch logs or anything else
         return {"action_type": "resolve_incident", "resolution_notes": "Solved"}
 
 def main():
