@@ -1,6 +1,13 @@
-# Cloud SRE / DevOps OpenEnv Environment
+---
+title: Cloud SRE Environment
+emoji: 🚀
+colorFrom: gray
+colorTo: blue
+sdk: docker
+pinned: false
+---
 
-An advanced, real-world Site Reliability Engineering environment built for the Meta OpenEnv Hackathon. This environment evaluates autonomous AI agents on their ability to triage, diagnose, and resolve production cloud infrastructure incidents.
+# Cloud SRE / DevOps OpenEnv Environment
 
 ## Environment Description 
 Unlike simple customer support bots or toy data tasks, managing infrastructure is a challenging, high-value domain for AI. The `cloud-sre-env` simulates a microservices architecture. The agent acts as an on-call SRE and must interact with the system to recover from cascading failures. 
