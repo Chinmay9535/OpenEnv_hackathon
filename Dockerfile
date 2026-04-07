@@ -14,4 +14,4 @@ COPY . .
 EXPOSE 8000
 
 # Command to run openenv API or FastAPI
-CMD ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "8000"]
