@@ -1,0 +1,9 @@
+version: "1.0"
+name: cloud-sre-env
+description: >
+  An SRE / DevOps environment where an AI agent diagnoses and resolves 
+  infrastructure incidents by querying metrics, inspecting logs, 
+  managing deployments, and executing database operations.
+server:
+  host: 0.0.0.0
+  port: 8000
