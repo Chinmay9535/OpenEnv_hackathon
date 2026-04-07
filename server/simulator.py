@@ -1,15 +1,16 @@
 import json
-import re
+import math
+import time
 
 class CloudSimulator:
     def __init__(self, task_level: int = 1):
         self.task_level = task_level
         self.step_count = 0
+        self.created_at = time.time()
         self.resolved = False
         self.output = "Environment initialized. Awaiting commands."
         self.score = 0.0
         
-        # Grading tracking
         self.grader_state = {
             "queried_metrics": False,
             "fetched_logs": False,
@@ -36,35 +37,78 @@ class CloudSimulator:
             self.alerts = []
             self.task_desc = "Unknown task level."
 
+    @property
+    def live_metrics(self):
+        t = time.time()
+        noise = math.sin(t * 0.5) * 5 + math.cos(t * 1.3) * 2
+        
+        # Base healthy state
+        cpu = 30 + noise
+        mem = 40 + noise * 0.5
+        err = max(0, 1.0 + (noise * 0.2)) # 1% baseline error rate
+        
+        # Apply incident pressure if not resolved
+        if not self.resolved:
+            elapsed = min(120, t - self.created_at) # cap growth
+            if self.task_level == 1:
+                mem = min(99.9, 65 + (elapsed * 0.2) + noise)
+            elif self.task_level == 2:
+                err = min(80.0, 20 + (elapsed * 0.5) + noise)
+            elif self.task_level == 3:
+                cpu = min(100.0, 85 + (elapsed * 0.1) + noise)
+                err = min(50.0, 10 + (elapsed * 0.3) + noise)
+            
+        return {
+            "cpu": round(cpu, 1),
+            "memory": round(mem, 1),
+            "error_rate": round(err, 1)
+        }
+
     def query_metrics(self, service: str, metric: str) -> str:
         self.step_count += 1
-        if self.task_level == 1 and service == 'cache' and metric == 'memory_usage':
-            self.grader_state['queried_metrics'] = True
-            return json.dumps([{"time": "10:00", "val": "40%"}, {"time": "10:05", "val": "99%"}])
-        if self.task_level == 2 and service == 'payment-gateway' and metric == 'error_rate':
-            self.grader_state['queried_metrics'] = True
-            return json.dumps([{"time": "10:05", "val": "0%"}, {"time": "10:10", "val": "85%"}])
-        return f"No anomalous metric data found for {metric} on {service}."
+        
+        points = []
+        now = time.time()
+        for i in range(10):
+            t_offset = (10 - i) * 10 # 10s intervals
+            t = now - t_offset
+            noise = math.sin(t * 0.5) * 5
+            
+            val = 30 + noise # default
+            if self.task_level == 1 and metric == 'memory_usage' and service == 'cache':
+                self.grader_state['queried_metrics'] = True
+                val = 40 + noise if (i < 5 and not self.resolved) else 90 + noise
+                if self.resolved: val = 40 + noise
+            elif self.task_level == 2 and metric == 'error_rate' and service == 'payment-gateway':
+                self.grader_state['queried_metrics'] = True
+                val = 1 + noise if (i < 5 and not self.resolved) else 50 + noise
+                if self.resolved: val = 1 + noise
+                
+            val = min(max(val, 0), 100)
+            points.append({"time": f"T-{t_offset}s", "val": f"{val:.1f}%"})
+            
+        return json.dumps(points)
 
     def fetch_logs(self, service: str, lines: int) -> str:
         self.step_count += 1
+        curr_time = time.strftime("%H:%M:%S")
         if self.task_level == 1 and service == 'cache':
             self.grader_state['fetched_logs'] = True
-            return "10:04 INFO: Starting cache compaction\n10:05 ERROR: OutOfMemoryError in compaction routine."
+            return f"{curr_time} INFO: Starting cache compaction\n{curr_time} ERROR: OutOfMemoryError in compaction routine."
         if self.task_level == 3:
             if service == 'frontend':
                 self.grader_state['trace_frontend'] = True
-                return "10:15 ERROR: Timeout upstream waiting for cart-service."
+                return f"{curr_time} ERROR: Timeout upstream waiting for cart-service."
             elif service == 'cart-service':
                 self.grader_state['trace_cart'] = True
-                return "10:15 ERROR: DB connection timeout fetching cart items. Transaction stalled."
+                return f"{curr_time} ERROR: DB connection timeout fetching cart items. Transaction stalled."
         return f"Fetching {lines} lines from {service} logs... All operations nominal."
 
     def list_deployments(self, service: str) -> str:
         self.step_count += 1
         if self.task_level == 2 and service == 'payment-gateway':
             self.grader_state['checked_deployments'] = True
-            return "v1.0.4 - DEPLOYED at 10:09\nv1.0.3 - STABLE deployed yesterday"
+            return "v1.0.4 - DEPLOYED RECENTLY\nv1.0.3 - STABLE deployed yesterday"
         return "v1.0.0 - STABLE"
 
     def rollback_deployment(self, service: str, version: str) -> str:
@@ -91,17 +135,16 @@ class CloudSimulator:
     def resolve_incident(self, notes: str) -> str:
         self.step_count += 1
         self.resolved = True
+        self.alerts = []
+        self.score = 0.0
         
         # Grading logic
-        self.score = 0.0
         if self.task_level == 1:
             if self.grader_state['queried_metrics']: self.score += 0.5
             if self.grader_state['fetched_logs']: self.score += 0.5
-            
         elif self.task_level == 2:
             if self.grader_state['checked_deployments']: self.score += 0.3
             if self.grader_state['rolled_back']: self.score += 0.7
-            
         elif self.task_level == 3:
             if self.grader_state['trace_frontend']: self.score += 0.2
             if self.grader_state['trace_cart']: self.score += 0.2

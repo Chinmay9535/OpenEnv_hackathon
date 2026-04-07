@@ -1,5 +1,7 @@
 import uvicorn
+import os
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Optional, Any
 from server.models import CloudSREAction, CloudSREObservation
@@ -7,7 +9,8 @@ from server.simulator import CloudSimulator
 
 app = FastAPI(title="CloudSRE OpenEnv")
 
-current_sim: Optional[CloudSimulator] = None
+# Auto-initialize so the dashboard has something to show immediately
+current_sim: Optional[CloudSimulator] = CloudSimulator(task_level=1) 
 
 class ResetRequest(BaseModel):
     task_id: int = 1
@@ -23,9 +26,12 @@ class StateResponse(BaseModel):
     score: float
     done: bool
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 async def root():
-    return {"status": "ok", "message": "Cloud SRE OpenEnv API is running securely. Listening for agent requests on /reset and /step."}
+    if os.path.exists("server/index.html"):
+        with open("server/index.html", "r") as f:
+            return f.read()
+    return "<h1>CloudSRE War Room Default API</h1>"
 
 @app.post("/reset")
 async def reset(req: ResetRequest = ResetRequest()) -> StepResponse:
@@ -35,7 +41,8 @@ async def reset(req: ResetRequest = ResetRequest()) -> StepResponse:
         active_alerts=current_sim.alerts,
         task_description=current_sim.task_desc,
         last_action_output="Environment Reset",
-        echoed_message="Started new debug session."
+        echoed_message="Started new debug session.",
+        live_metrics=current_sim.live_metrics
     )
     return StepResponse(observation=obs, reward=0.0, done=False, info={})
 
@@ -49,7 +56,8 @@ async def step(action: CloudSREAction) -> StepResponse:
         active_alerts=current_sim.alerts,
         task_description=current_sim.task_desc,
         last_action_output=output[:1000],
-        echoed_message=f"Executed {action.action_type}"
+        echoed_message=f"Executed {action.action_type}",
+        live_metrics=current_sim.live_metrics
     )
     return StepResponse(
         observation=obs, 
@@ -67,7 +75,8 @@ async def state() -> StateResponse:
         active_alerts=current_sim.alerts,
         task_description=current_sim.task_desc,
         last_action_output=current_sim.output,
-        echoed_message=""
+        echoed_message="",
+        live_metrics=current_sim.live_metrics
     )
     return StateResponse(observation=obs, score=current_sim.score, done=current_sim.resolved)
 

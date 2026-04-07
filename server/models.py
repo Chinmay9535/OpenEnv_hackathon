@@ -24,3 +24,4 @@ class CloudSREObservation(BaseModel):
     task_description: str = Field(..., description="The current objective.")
     last_action_output: str = Field(..., description="Output from the previous command.")
     echoed_message: str = Field("", description="System echoes.")
+    live_metrics: dict = Field(default_factory=dict, description="Current real-time system metrics for the dashboard.")

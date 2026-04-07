@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudSRE War Room</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap');
+        body {
+            margin: 0;
+            padding: 30px;
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at bottom right, #111827, #000000);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        h1 { margin: 0; font-size: 2.5rem; text-transform: uppercase; letter-spacing: 2px; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        .kpi { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .kpi-title { font-size: 0.9rem; color: #9ca3af; text-transform: uppercase; }
+        .kpi-value { font-size: 3rem; font-weight: bold; transition: color 0.5s; }
+        .critical { color: #ef4444; text-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
+        .healthy { color: #10b981; }
+        .chart-container { height: 400px; width: 100%; }
+        .alerts { color: #ef4444; font-weight: bold; margin-bottom: 15px; }
+        #log-window { 
+            background: rgba(0,0,0,0.5); 
+            color: #34d399; 
+            font-family: monospace; 
+            padding: 15px; 
+            border-radius: 8px; 
+            height: 200px; 
+            overflow-y: auto; 
+            border: 1px solid #3f3f46;
+        }
+    </style>
+</head>
+<body>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h1>CloudSRE War Room</h1>
+        <div id="status-badge" class="glass-panel healthy" style="font-size: 1.2rem; font-weight: bold; padding: 10px 20px;">SYSTEMS NOMINAL</div>
+    </div>
+    
+    <div class="metrics-grid">
+        <div class="glass-panel kpi">
+            <div class="kpi-title">CPU Utilization</div>
+            <div id="cpu-val" class="kpi-value healthy">0.0%</div>
+        </div>
+        <div class="glass-panel kpi">
+            <div class="kpi-title">Memory Allocation</div>
+            <div id="mem-val" class="kpi-value healthy">0.0%</div>
+        </div>
+        <div class="glass-panel kpi">
+            <div class="kpi-title">HTTP 500 Err Rate</div>
+            <div id="err-val" class="kpi-value healthy">0.0%</div>
+        </div>
+    </div>
+    
+    <div class="glass-panel">
+        <div class="chart-container">
+            <canvas id="telemetryChart"></canvas>
+        </div>
+    </div>
+    
+    <div class="glass-panel">
+        <h3 style="margin-top:0; color: #e5e7eb;">Agent Execution Stream</h3>
+        <div class="alerts" id="alerts">No active alerts.</div>
+        <div id="log-window"></div>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('telemetryChart').getContext('2d');
+        
+        const chartData = {
+            labels: Array(50).fill(""),
+            datasets: [
+                { label: 'CPU Usage (%)', borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', data: Array(50).fill(0), fill: true, tension: 0.4 },
+                { label: 'Memory Allocation (%)', borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.1)', data: Array(50).fill(0), fill: true, tension: 0.4 },
+                { label: 'Error Rate (%)', borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', data: Array(50).fill(0), fill: true, tension: 0.4 }
+            ]
+        };
+
+        const config = {
+            type: 'line',
+            data: chartData,
+            options: {
+                responsive: true, 
+                maintainAspectRatio: false,
+                animation: { duration: 200 },
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    y: { 
+                        min: 0, 
+                        max: 100, 
+                        grid: { color: 'rgba(255,255,255,0.05)' }, 
+                        ticks: { color: '#9ca3af' } 
+                    },
+                    x: { display: false, grid: { display: false } }
+                },
+                plugins: { legend: { labels: { color: '#e5e7eb', font: { family: 'Inter' } } } }
+            }
+        };
+        const myChart = new Chart(ctx, config);
+
+        let lastOutput = "";
+
+        async function pollState() {
+            try {
+                const res = await fetch('/state');
+                const data = await res.json();
+                const obs = data.observation;
+                const m = obs.live_metrics;
+                
+                // Update KPIs
+                document.getElementById('cpu-val').innerText = m.cpu.toFixed(1) + '%';
+                document.getElementById('mem-val').innerText = m.memory.toFixed(1) + '%';
+                document.getElementById('err-val').innerText = m.error_rate.toFixed(1) + '%';
+                
+                // Color formatting
+                document.getElementById('cpu-val').className = "kpi-value " + (m.cpu > 80 ? "critical" : "healthy");
+                document.getElementById('mem-val').className = "kpi-value " + (m.memory > 80 ? "critical" : "healthy");
+                document.getElementById('err-val').className = "kpi-value " + (m.error_rate > 5 ? "critical" : "healthy");
+                
+                // Status Badge
+                const badge = document.getElementById('status-badge');
+                if (obs.active_alerts && obs.active_alerts.length > 0) {
+                    badge.innerText = "OUTAGE TRACE ACTIVE";
+                    badge.className = "glass-panel critical";
+                    document.getElementById('alerts').innerText = "FATAL ALERTS: " + obs.active_alerts.join(' | ');
+                } else if(data.done) {
+                    badge.innerText = "INCIDENT NEUTRALIZED";
+                    badge.className = "glass-panel healthy";
+                    document.getElementById('alerts').innerText = "All alerts resolved by AI Agent.";
+                } else {
+                    badge.innerText = "SYSTEMS NOMINAL";
+                    badge.className = "glass-panel healthy";
+                    document.getElementById('alerts').innerText = "All systems operational.";
+                }
+
+                // Logs
+                if(obs.last_action_output !== lastOutput) {
+                    lastOutput = obs.last_action_output;
+                    const logWindow = document.getElementById('log-window');
+                    if (obs.echoed_message) {
+                        logWindow.innerHTML += `<div style="color: #60a5fa; margin-top: 10px;">> Agent: ${obs.echoed_message}</div>`;
+                    }
+                    if (obs.last_action_output) {
+                        logWindow.innerHTML += `<div style="color:#d1d5db; padding-left: 15px;">${obs.last_action_output}</div>`;
+                    }
+                    logWindow.scrollTop = logWindow.scrollHeight;
+                }
+
+                // Update Chart
+                chartData.datasets[0].data.push(m.cpu);
+                chartData.datasets[1].data.push(m.memory);
+                chartData.datasets[2].data.push(m.error_rate);
+                
+                chartData.datasets.forEach(d => d.data.shift());
+                
+                myChart.update();
+                
+            } catch(e) { }
+        }
+
+        setInterval(pollState, 1000);
+        pollState(); // Initial run
+    </script>
+</body>
+</html>
