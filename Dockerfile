@@ -10,8 +10,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application files
 COPY . .
 
-# Expose port 8000 for FastAPI
-EXPOSE 8000
+# Expose port 7860 for FastAPI and Hugging Face sync
+EXPOSE 7860
 
 # Command to run openenv API or FastAPI
 CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860"]
