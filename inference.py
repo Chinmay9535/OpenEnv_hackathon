@@ -77,6 +77,9 @@ def main():
                 action_dict = get_model_action(client, obs_str)
                 action_str = json.dumps(action_dict)
                 
+                import time
+                time.sleep(3) # Slow down for cinematic dashboard updates
+                
                 resp = http.post(f"{PING_URL}/step", json=action_dict)
                 result = resp.json()
                 
