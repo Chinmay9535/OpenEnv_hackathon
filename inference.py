@@ -6,7 +6,7 @@ from openai import OpenAI
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o")
-HF_TOKEN = os.getenv("HF_TOKEN")
+API_KEY = os.getenv("API_KEY", os.getenv("HF_TOKEN", "dummy-key"))
 
 # Optional - if you use from_docker_image():
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
@@ -33,15 +33,14 @@ def get_model_action(client: OpenAI, obs_json: str) -> dict:
     Step 3: {{"action_type": "resolve_incident", "resolution_notes": "memory compaction fixed"}}
     """
     try:
-        if HF_TOKEN and HF_TOKEN != "dummy":
-            response = client.chat.completions.create(
-                model=MODEL_NAME,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=64
-            )
-            content = response.choices[0].message.content
-            # just parse JSON (fallback to deterministic if fails)
-            return json.loads(content)
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=256
+        )
+        content = response.choices[0].message.content
+        # just parse JSON (fallback to deterministic if fails)
+        return json.loads(content)
     except Exception as e:
         pass
     
@@ -64,7 +63,7 @@ def get_model_action(client: OpenAI, obs_json: str) -> dict:
 def main():
     log_start(task="SRE Triage", env="cloud-sre-env", model=MODEL_NAME)
     
-    client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN or "dummy-key")
+    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
     
     history = []
     rewards = []
