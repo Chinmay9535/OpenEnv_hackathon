@@ -11,8 +11,6 @@ HF_TOKEN = os.getenv("HF_TOKEN")
 # Optional - if you use from_docker_image():
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 
-PING_URL = os.getenv("PING_URL", "http://localhost:7860")
-
 def log_start(task: str, env: str, model: str):
     print(f"[START] task={task} env={env} model={model}", flush=True)
 
@@ -42,6 +40,7 @@ def get_model_action(client: OpenAI, obs_json: str) -> dict:
         # just parse JSON (fallback to deterministic if fails)
         return json.loads(content)
     except Exception as e:
+        print(f"LLM failure: {e}")
         pass
     
     # Deterministic fallback for automated offline grading without valid openAI token
@@ -75,19 +74,30 @@ def main():
     
     try:
         with httpx.Client() as http:
-            # Task 1 baseline
-            try:
-                resp = http.post(f"{PING_URL}/reset", json={"task_id": 1}, timeout=10.0)
-                resp.raise_for_status()
-            except Exception as e:
-                # Fallback to port 8000 just in case Meta overrides the routing
-                if "7860" in PING_URL:
-                    PING_URL = PING_URL.replace("7860", "8000")
-                resp = http.post(f"{PING_URL}/reset", json={"task_id": 1}, timeout=10.0)
-                resp.raise_for_status()
+            # Task 1 baseline with automatic retries and port scanning
+            connected = False
+            base_url = ""
+            obs = None
+            urls_to_try = [os.getenv("OPENENV_BASE_URL")] if os.getenv("OPENENV_BASE_URL") else ["http://localhost:8000", "http://localhost:7860", "http://localhost:8080"]
             
-            result = resp.json()
-            obs = result['observation']
+            for url in urls_to_try:
+                for attempt in range(3):
+                    try:
+                        resp = http.post(f"{url}/reset", json={"task_id": 1}, timeout=15.0)
+                        resp.raise_for_status()
+                        result = resp.json()
+                        obs = result['observation']
+                        base_url = url
+                        connected = True
+                        break
+                    except Exception as e:
+                        import time
+                        time.sleep(2)
+                if connected:
+                    break
+            
+            if not connected:
+                raise Exception(f"Failed to connect to the environment API on any expected port after retries: {urls_to_try}")
             
             for step in range(1, 10):
                 obs_str = json.dumps(obs)
@@ -95,17 +105,9 @@ def main():
                 action_dict = get_model_action(client, obs_str)
                 action_str = json.dumps(action_dict)
                 
-                try:
-                    resp = http.post(f"{PING_URL}/step", json=action_dict, timeout=10.0)
-                    resp.raise_for_status()
-                    result = resp.json()
-                except Exception as e:
-                    # Fallback to port 8000 just in case Meta overrides the container routing
-                    if "7860" in PING_URL:
-                        PING_URL = PING_URL.replace("7860", "8000")
-                    resp = http.post(f"{PING_URL}/step", json=action_dict, timeout=10.0)
-                    resp.raise_for_status()
-                    result = resp.json()
+                resp = http.post(f"{base_url}/step", json=action_dict, timeout=10.0)
+                resp.raise_for_status()
+                result = resp.json()
                 
                 obs = result['observation']
                 reward = result['reward']
@@ -121,11 +123,6 @@ def main():
                     break
             
             success = score >= 1.0
-            
-    except Exception as e:
-        print(f"CRITICAL PIPELINE ERROR: {str(e)}")
-        success = False
-        score = 0.0
             
     finally:
         log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
