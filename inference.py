@@ -85,17 +85,9 @@ def get_model_action(client: OpenAI, obs_json: str) -> dict:
         return {"action_type": "resolve_incident", "resolution_notes": "Solved"}
 
 def main():
-    log_start(task="SRE Triage", env="cloud-sre-env", model=MODEL_NAME)
-    
     # Meta injects API_KEY during proxy phase, but platform regex requires HF_TOKEN globally
     active_key = os.getenv("API_KEY", HF_TOKEN or "dummy-key")
     client = OpenAI(base_url=API_BASE_URL, api_key=active_key)
-    
-    history = []
-    rewards = []
-    steps_taken = 0
-    score = 0.0
-    success = False
     
     try:
         with httpx.Client() as http:
@@ -124,9 +116,19 @@ def main():
             if not connected:
                 raise Exception(f"Failed to connect to the environment API on any expected port after retries: {urls_to_try}")
             
+            
             all_success = True
             
             for evaluating_task_id in [1, 2, 3]:
+                history = []
+                rewards = []
+                steps_taken = 0
+                score = 0.0
+                success = False
+                obs = None
+                
+                log_start(task=f"Task {evaluating_task_id}", env="cloud-sre-env", model=MODEL_NAME)
+                
                 # Force reset to target task
                 for attempt in range(3):
                     try:
@@ -140,6 +142,8 @@ def main():
                         time.sleep(2)
                         
                 for step in range(1, 10):
+                    if not obs: break
+                    
                     obs_str = json.dumps(obs)
                     
                     action_dict = get_model_action(client, obs_str)
@@ -164,11 +168,16 @@ def main():
                 
                 if score < 0.90:
                     all_success = False
+                    
+                success = score >= 0.90
+                log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
             
-            success = all_success
+            # Use all_success for overall job exit code status if wrapped by OS tracking
+            if not all_success:
+                pass
             
     finally:
-        log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
+        pass
 
 if __name__ == "__main__":
     main()
