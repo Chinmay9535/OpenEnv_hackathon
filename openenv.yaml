@@ -8,12 +8,12 @@ server:
   host: 0.0.0.0
   port: 7860
 tasks:
-  - task_id: 1
+  - id: "1"
     name: "Alert Triage"
     description: "Memory Spike"
-  - task_id: 2
+  - id: "2"
     name: "Bad Deployment Rollback"
     description: "500 Error Rates"
-  - task_id: 3
+  - id: "3"
     name: "Cascading Database Failure"
     description: "Database deadlock"
