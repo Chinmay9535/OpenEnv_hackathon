@@ -9,7 +9,7 @@ class CloudSimulator:
         self.created_at = time.time()
         self.resolved = False
         self.output = "Environment initialized. Awaiting commands."
-        self.score = 0.0
+        self.score = 0.001
         
         self.grader_state = {
             "queried_metrics": False,
@@ -136,19 +136,19 @@ class CloudSimulator:
         self.step_count += 1
         self.resolved = True
         self.alerts = []
-        self.score = 0.0
+        self.score = 0.001
         
         # Grading logic
         if self.task_level == 1:
-            if self.grader_state['queried_metrics']: self.score += 0.5
-            if self.grader_state['fetched_logs']: self.score += 0.5
+            if self.grader_state['queried_metrics']: self.score += 0.49
+            if self.grader_state['fetched_logs']: self.score += 0.49
         elif self.task_level == 2:
             if self.grader_state['checked_deployments']: self.score += 0.3
-            if self.grader_state['rolled_back']: self.score += 0.7
+            if self.grader_state['rolled_back']: self.score += 0.69
         elif self.task_level == 3:
             if self.grader_state['trace_frontend']: self.score += 0.2
             if self.grader_state['trace_cart']: self.score += 0.2
-            if self.grader_state['killed_db_transaction']: self.score += 0.6
+            if self.grader_state['killed_db_transaction']: self.score += 0.58
             
         return f"Incident resolved. Notes recorded: {notes}"
 
