@@ -137,8 +137,11 @@ def run_task(client: OpenAI, http: httpx.Client, base_url: str, task_id: int) ->
             break
 
         obs = result.get("observation") or result.get("obs")
-        reward = float(result.get("reward") or result.get("observation", {}).get("reward", 0.0))
-        done = bool(result.get("done") or result.get("observation", {}).get("done", False))
+        raw_reward = result.get("reward")
+        if raw_reward is None and obs:
+            raw_reward = obs.get("reward", 0.001)
+        reward = float(raw_reward) if raw_reward is not None else 0.001
+        done = bool(result.get("done", False))
 
         rewards.append(reward)
         steps_taken = step_num

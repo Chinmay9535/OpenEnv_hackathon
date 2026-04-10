@@ -101,7 +101,7 @@ class CloudSREEnvironment(Environment):
             cumulative_score=0.001,
             live_metrics=self._sim.live_metrics,
             services_status=self._sim.services_status,
-            reward=0.0,
+            reward=0.001,  # BASE_SCORE — never exactly 0.0
             done=False,
         )
         return obs
