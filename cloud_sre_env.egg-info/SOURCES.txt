@@ -7,5 +7,6 @@ cloud_sre_env.egg-info/entry_points.txt
 cloud_sre_env.egg-info/requires.txt
 cloud_sre_env.egg-info/top_level.txt
 server/app.py
+server/environment.py
 server/models.py
 server/simulator.py
