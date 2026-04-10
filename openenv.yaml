@@ -1,19 +1,11 @@
-version: "1.0"
+spec_version: 1
 name: cloud-sre-env
 description: >
   An SRE / DevOps environment where an AI agent diagnoses and resolves 
-  infrastructure incidents by querying metrics, inspecting logs, 
-  managing deployments, and executing database operations.
-server:
-  host: 0.0.0.0
-  port: 7860
-tasks:
-  - id: "1"
-    name: "Alert Triage"
-    description: "Memory Spike"
-  - id: "2"
-    name: "Bad Deployment Rollback"
-    description: "500 Error Rates"
-  - id: "3"
-    name: "Cascading Database Failure"
-    description: "Database deadlock"
+  real-world infrastructure incidents by querying live metrics, inspecting 
+  service logs, managing deployments, and executing database operations 
+  across a simulated microservices cluster.
+type: space
+runtime: fastapi
+app: server.app:app
+port: 7860
