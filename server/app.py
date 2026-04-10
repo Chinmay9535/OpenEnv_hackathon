@@ -141,7 +141,11 @@ async def state() -> Dict[str, Any]:
     """Get the current environment state without advancing the episode."""
     global _env
     if _env._sim is None:
-        raise HTTPException(status_code=400, detail="Environment not initialized. Call /reset first.")
+        return {
+            "status": "idle",
+            "message": "No active episode. Call POST /reset with task_id=1, 2, or 3 to begin.",
+            "available_tasks": [1, 2, 3],
+        }
     sim = _env._sim
     return {
         "task_id": sim.task_level,
