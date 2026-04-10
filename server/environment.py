@@ -15,17 +15,10 @@ from typing import Optional
 from uuid import uuid4
 
 try:
-    from openenv.core.env_server.interfaces import Environment
-    from openenv.core.env_server.types import State
+    from openenv.core.env_server.interfaces import Environment as _OpenEnvEnvironment
+    _BASE = _OpenEnvEnvironment
 except ImportError:
-    # Fallback for local dev without full openenv install
-    class Environment:  # type: ignore
-        pass
-
-    class State:  # type: ignore
-        def __init__(self, **kwargs):
-            for k, v in kwargs.items():
-                setattr(self, k, v)
+    _BASE = object  # type: ignore
 
 try:
     from .models import CloudSREAction, CloudSREObservation
@@ -35,7 +28,7 @@ except ImportError:
     from simulator import CloudSimulator  # type: ignore
 
 
-class CloudSREEnvironment(Environment):
+class CloudSREEnvironment(_BASE):  # type: ignore
     """
     Cloud SRE environment for training agents on infrastructure incident response.
 
@@ -135,9 +128,9 @@ class CloudSREEnvironment(Environment):
         return obs
 
     @property
-    def state(self) -> State:
+    def state(self) -> dict:  # type: ignore
         """Current episode state for openenv framework tracking."""
-        return State(
-            episode_id=self._episode_id,
-            step_count=self._step_count,
-        )
+        return {
+            "episode_id": self._episode_id,
+            "step_count": self._step_count,
+        }

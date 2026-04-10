@@ -1,32 +1,28 @@
 """
 Data models for the Cloud SRE OpenEnv Environment.
 
-The CloudSRE environment simulates a microservices infrastructure where
-an AI agent acts as an on-call SRE, diagnosing and resolving incidents.
+IMPORTANT: CloudSREObservation intentionally inherits from plain BaseModel
+(not openenv.core.Observation) to avoid field conflicts with the base class's
+`reward: Optional[float] = None` and `metadata: dict` (required) fields.
+The openenv.core.Observation base class has `reward` typed as
+`bool | int | float | None` with default=None, which causes serialization
+issues where the validator sees None/0 as out-of-range scores.
 
-Action Space:
-    CloudSREAction — defines all available SRE commands
-
-Observation Space:
-    CloudSREObservation — the agent's view of the current system state
+CloudSREAction still inherits from openenv.core.Action for schema compliance.
 """
 
 from typing import Dict, List, Literal, Optional
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 try:
-    from openenv.core.env_server.types import Action, Observation
+    from openenv.core.env_server.types import Action
 except ImportError:
-    from pydantic import BaseModel as Action, BaseModel as Observation  # type: ignore
+    Action = BaseModel  # type: ignore
 
 
 class CloudSREAction(Action):
-    """An action taken by the SRE agent in the Cloud SRE environment.
-
-    The agent selects one action per step. The action_type determines
-    which operation is executed against the simulated infrastructure.
-    """
+    """An action taken by the SRE agent in the Cloud SRE environment."""
 
     action_type: Literal[
         "query_metrics",
@@ -56,7 +52,7 @@ class CloudSREAction(Action):
     )
     query: Optional[str] = Field(
         None,
-        description="SQL or database management query to execute (e.g., 'SELECT * FROM pg_stat_activity').",
+        description="SQL or database management query to execute.",
     )
     resolution_notes: Optional[str] = Field(
         None,
@@ -64,30 +60,36 @@ class CloudSREAction(Action):
     )
 
 
-class CloudSREObservation(Observation):
-    """Observation returned to the agent after each step in the Cloud SRE environment.
+class CloudSREObservation(BaseModel):
+    """Observation returned to the agent after each step.
 
-    The observation provides the agent with full situational awareness of the
-    current incident, including firing alerts, the last command output, and
-    live system telemetry for contextual reasoning.
+    Uses plain BaseModel (not openenv.core.Observation) to avoid field
+    conflicts from the base class's reward: Optional[float] = None default,
+    which the validator would read as 0 (out of range).
+
+    All reward values are guaranteed strictly in (0.001, 0.981).
     """
 
-    # OpenEnv required fields — reward signal and episode termination flag
+    # Core RL fields — always set explicitly, never use defaults
     reward: float = Field(
-        default=0.0,
-        description="Grader reward for this step (partial credit, strictly between 0 and 1).",
+        default=0.001,
+        ge=0.0,
+        le=1.0,
+        description="Grader reward for this step, strictly in (0, 1).",
     )
     done: bool = Field(
         default=False,
-        description="True when the incident has been resolved and episode ends.",
+        description="True when the incident has been resolved and the episode ends.",
     )
+
+    # SRE-specific observation fields
     active_alerts: List[str] = Field(
         default_factory=list,
-        description="List of currently active PagerDuty-style alerts firing in the cluster.",
+        description="List of currently active PagerDuty-style alerts.",
     )
     task_description: str = Field(
         default="",
-        description="Natural-language description of the current incident objective.",
+        description="Natural-language description of the current incident.",
     )
     last_action_output: str = Field(
         default="",
@@ -98,14 +100,14 @@ class CloudSREObservation(Observation):
         description="Number of steps taken in the current episode.",
     )
     cumulative_score: float = Field(
-        default=0.0,
-        description="Running grader score based on correct diagnostic steps taken so far.",
+        default=0.001,
+        description="Running grader score based on correct diagnostic steps.",
     )
     live_metrics: Dict[str, float] = Field(
         default_factory=dict,
-        description="Real-time system telemetry snapshot: cpu, memory, error_rate.",
+        description="Real-time telemetry: cpu, memory, error_rate.",
     )
     services_status: Dict[str, str] = Field(
         default_factory=dict,
-        description="Health status of each microservice: 'healthy', 'degraded', or 'critical'.",
+        description="Health status per microservice: 'healthy', 'degraded', 'critical'.",
     )
