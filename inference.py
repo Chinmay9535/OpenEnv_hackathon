@@ -35,10 +35,10 @@ def log_step(step: int, action: str, reward: float, done: bool, error: Optional[
 
 def log_end(success: bool, steps: int, rewards: List[float]):
     success_str = "true" if success else "false"
-    # Guarantee at least one reward and all values strictly in (0, 1)
-    safe_rewards = [_safe_reward(r) for r in rewards] if rewards else [_MIN_REWARD]
-    rewards_str = ",".join(f"{r:.4f}" for r in safe_rewards)
-    print(f"[END] success={success_str} steps={steps} rewards={rewards_str}", flush=True)
+    # Spec requires rewards=<float> (single final score), NOT a comma-separated list.
+    # float("0.28,0.58,0.91") raises ValueError in the validator → treated as 0.0 → out of range.
+    final_reward = _safe_reward(rewards[-1] if rewards else _MIN_REWARD)
+    print(f"[END] success={success_str} steps={steps} rewards={final_reward:.4f}", flush=True)
 
 
 def get_model_action(client: OpenAI, obs: dict) -> dict:
