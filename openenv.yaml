@@ -1,11 +1,43 @@
 spec_version: 1
 name: cloud-sre-env
 description: >
-  An SRE / DevOps environment where an AI agent diagnoses and resolves 
-  real-world infrastructure incidents by querying live metrics, inspecting 
-  service logs, managing deployments, and executing database operations 
+  An SRE / DevOps environment where an AI agent diagnoses and resolves
+  real-world infrastructure incidents by querying live metrics, inspecting
+  service logs, managing deployments, and executing database operations
   across a simulated microservices cluster.
 type: space
 runtime: fastapi
 app: server.app:app
 port: 7860
+
+tasks:
+  - id: cache-oom-triage
+    name: "Cache Memory Spike — OOM in Compaction"
+    description: >
+      The cache service is experiencing critical heap utilization (95%).
+      The agent must query memory metrics, inspect cache logs to identify
+      an OutOfMemoryError in compaction, and resolve the incident.
+      Reward is cumulative across 3 diagnostic steps.
+    difficulty: easy
+    grader: tasks.task1:grade
+
+  - id: payment-gateway-rollback
+    name: "Payment-Gateway 500 Errors — Bad Deployment"
+    description: >
+      The payment-gateway service is returning HTTP 500 errors following a
+      recent bad deployment. The agent must inspect deployment history,
+      identify the faulty version (v1.0.4), rollback to v1.0.3, and resolve
+      the incident. Reward is cumulative across 3 diagnostic steps.
+    difficulty: medium
+    grader: tasks.task2:grade
+
+  - id: frontend-db-deadlock
+    name: "Frontend Timeouts — Cart-Service DB Deadlock"
+    description: >
+      The frontend is timing out due to a cascading failure traced to a
+      PostgreSQL deadlock (PID 9942) in cart-service. The agent must trace
+      logs through frontend → cart-service → DB activity query → kill the
+      deadlocked PID → resolve the incident. Reward is cumulative across
+      5 diagnostic steps.
+    difficulty: hard
+    grader: tasks.task3:grade

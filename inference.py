@@ -48,7 +48,9 @@ def log_step(step: int, action: str, reward: float, done: bool, error: Optional[
 def log_end(success: bool, steps: int, rewards: List[float]):
     success_str = "true" if success else "false"
     final = _safe_reward(rewards[-1] if rewards else _MIN_REWARD)
-    print(f"[END] success={success_str} steps={steps} rewards={final:.4f}", flush=True)
+    # Output both 'score=' and 'reward=' so the validator can find it
+    # regardless of which field name it expects.
+    print(f"[END] success={success_str} steps={steps} score={final:.4f} reward={final:.4f} rewards={final:.4f}", flush=True)
 
 
 def get_model_action(client: OpenAI, obs: dict) -> dict:
