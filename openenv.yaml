@@ -1,10 +1,11 @@
 spec_version: 1
 name: cloud-sre-env
 description: >
-  An SRE / DevOps environment where an AI agent diagnoses and resolves
-  real-world infrastructure incidents by querying live metrics, inspecting
-  service logs, managing deployments, and executing database operations
-  across a simulated microservices cluster.
+  An SRE / DevOps environment where an AI agent acts as an on-call Site
+  Reliability Engineer diagnosing and resolving real-world infrastructure
+  incidents across a simulated microservices cluster. Five progressively
+  complex scenarios test metrics querying, log analysis, deployment rollbacks,
+  database management, and Kubernetes cluster operations.
 type: space
 runtime: fastapi
 app: server.app:app
@@ -17,27 +18,48 @@ tasks:
       The cache service is experiencing critical heap utilization (95%).
       The agent must query memory metrics, inspect cache logs to identify
       an OutOfMemoryError in compaction, and resolve the incident.
-      Reward is cumulative across 3 diagnostic steps.
+      3-step rubric: query_metrics → fetch_logs → resolve_incident.
     difficulty: easy
     grader: tasks.task1:grade
 
   - id: payment-gateway-rollback
     name: "Payment-Gateway 500 Errors — Bad Deployment"
     description: >
-      The payment-gateway service is returning HTTP 500 errors following a
-      recent bad deployment. The agent must inspect deployment history,
-      identify the faulty version (v1.0.4), rollback to v1.0.3, and resolve
-      the incident. Reward is cumulative across 3 diagnostic steps.
+      The payment-gateway service is returning HTTP 500 errors following a bad
+      deployment (v1.0.4). The agent must inspect deployment history, identify
+      the faulty version, rollback to v1.0.3, and resolve the incident.
+      3-step rubric: list_deployments → rollback_deployment → resolve_incident.
     difficulty: medium
     grader: tasks.task2:grade
 
   - id: frontend-db-deadlock
     name: "Frontend Timeouts — Cart-Service DB Deadlock"
     description: >
-      The frontend is timing out due to a cascading failure traced to a
-      PostgreSQL deadlock (PID 9942) in cart-service. The agent must trace
-      logs through frontend → cart-service → DB activity query → kill the
-      deadlocked PID → resolve the incident. Reward is cumulative across
-      5 diagnostic steps.
+      Frontend is timing out due to a cascading failure: cart-service is
+      blocked by a PostgreSQL deadlock (PID 9942). The agent must trace logs
+      through frontend → cart-service → DB activity → terminate PID → resolve.
+      5-step rubric with dense rewards at each diagnostic step.
     difficulty: hard
     grader: tasks.task3:grade
+
+  - id: api-gateway-rate-limit-cascade
+    name: "API Gateway Rate-Limit Cascade — Auth-Service CPU Regression"
+    description: >
+      The API Gateway is throttling >60% of traffic due to an auth-service CPU
+      regression introduced in v2.3.1 (RSA key cache miss rate 99.7%). The agent
+      must query auth metrics, inspect logs, rollback auth-service to v2.3.0,
+      and resolve the incident.
+      4-step rubric: query_metrics → fetch_logs → rollback → resolve_incident.
+    difficulty: hard
+    grader: tasks.task4:grade
+
+  - id: k8s-node-oom-eviction
+    name: "Kubernetes Node OOM — Pod Eviction Storm"
+    description: >
+      A Kubernetes worker node ran out of memory (31.8Gi / 32Gi), triggering
+      8 pod evictions and taking order-service offline. The agent must query
+      cluster metrics, inspect eviction logs, run DB connection diagnostics,
+      rollback order-service v3.2.0 → v3.1.9, and resolve the incident.
+      5-step rubric testing full-stack K8s + DB + deployment expertise.
+    difficulty: expert
+    grader: tasks.task5:grade
